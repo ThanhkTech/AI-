@@ -3,28 +3,51 @@ const router = express.Router();
 const db = require('../db');
 
 router.get('/kpi', (req, res) => {
-  const totalOrders = db.prepare('SELECT COUNT(*) as c FROM orders').get().c;
-  const totalContainers = db.prepare('SELECT COUNT(*) as c FROM containers').get().c;
-  const totalDrivers = db.prepare('SELECT COUNT(*) as c FROM drivers').get().c;
+  const orders     = db.orders.all();
+  const containers = db.containers.all();
+  const drivers    = db.drivers.all();
 
-  const ordersByStatus = db.prepare('SELECT order_status, COUNT(*) as count FROM orders GROUP BY order_status').all();
-  const containersByStatus = db.prepare('SELECT container_status, COUNT(*) as count FROM containers GROUP BY container_status').all();
-  const containersByLocation = db.prepare('SELECT location, COUNT(*) as count FROM containers GROUP BY location').all();
-  const driversByStatus = db.prepare('SELECT driver_status, COUNT(*) as count FROM drivers GROUP BY driver_status').all();
-
-  const delivered = ordersByStatus.find(s => s.order_status === 5)?.count || 0;
-  const cancelled = ordersByStatus.find(s => s.order_status === 6)?.count || 0;
+  const totalOrders = orders.length;
+  const delivered   = orders.filter(o => o.order_status === 5).length;
+  const cancelled   = orders.filter(o => o.order_status === 6).length;
   const activeOrders = totalOrders - delivered - cancelled;
-  const availableDrivers = driversByStatus.find(s => s.driver_status === 0)?.count || 0;
-  const busyDrivers = driversByStatus.find(s => s.driver_status === 1)?.count || 0;
-  const maintenanceContainers = containersByStatus.find(s => s.container_status === 4)?.count || 0;
+
+  // Group orders by status
+  const ordersByStatus = Array.from({ length: 7 }, (_, i) => ({
+    order_status: i,
+    count: orders.filter(o => o.order_status === i).length,
+  }));
+
+  // Group containers by status
+  const contByStatus = Array.from({ length: 5 }, (_, i) => ({
+    container_status: i,
+    count: containers.filter(c => c.container_status === i).length,
+  }));
+
+  // Group containers by location
+  const locations = ['Ga Đông Anh', 'Ga Trảng Bom', 'Ga Khác', 'Khác'];
+  const contByLocation = locations.map(l => ({
+    location: l,
+    count: containers.filter(c => c.location === l).length,
+  }));
+
+  const availableDrivers = drivers.filter(d => d.driver_status === 0).length;
+  const busyDrivers      = drivers.filter(d => d.driver_status === 1).length;
+  const maintenance      = containers.filter(c => c.container_status === 4).length;
 
   res.json({
-    orders: { total: totalOrders, active: activeOrders, delivered, cancelled, delivery_rate: totalOrders > 0 ? Math.round((delivered / totalOrders) * 100) : 0 },
-    containers: { total: totalContainers, maintenance: maintenanceContainers, by_status: containersByStatus, by_location: containersByLocation },
-    drivers: { total: totalDrivers, available: availableDrivers, busy: busyDrivers },
+    orders: {
+      total: totalOrders, active: activeOrders, delivered, cancelled,
+      delivery_rate: totalOrders > 0 ? Math.round((delivered / totalOrders) * 100) : 0,
+    },
+    containers: {
+      total: containers.length, maintenance,
+      by_status: contByStatus,
+      by_location: contByLocation,
+    },
+    drivers: { total: drivers.length, available: availableDrivers, busy: busyDrivers },
     orders_by_status: ordersByStatus,
-    recent_activity: db.prepare(`SELECT * FROM activity_log ORDER BY created_at DESC LIMIT 10`).all(),
+    recent_activity: db.data.activity_log.slice(0, 10),
   });
 });
 
