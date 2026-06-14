@@ -34,3 +34,6 @@ export function fmtDate(dt) {
   if (!dt) return '—';
   return new Date(dt).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
+
+// Re-export from utils for backwards compat
+export { fmtDate as fmtDateTime } from './utils/format';

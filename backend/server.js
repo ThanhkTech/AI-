@@ -11,6 +11,10 @@ app.use('/api/containers', require('./routes/containers'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/drivers', require('./routes/drivers'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/fuel', require('./routes/fuel'));
+app.use('/api/maintenance', require('./routes/maintenance'));
+app.use('/api/trips', require('./routes/trips'));
+app.use('/api/reports', require('./routes/reports'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
