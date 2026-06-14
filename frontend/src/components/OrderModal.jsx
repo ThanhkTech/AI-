@@ -5,30 +5,20 @@ import { api, useFetch } from '../hooks/useApi';
 
 export default function OrderModal({ order, onClose, onSaved }) {
   const isEdit = !!order?.id;
-  const [form, setForm] = useState({
-    order_number: '', container_id: '', driver_id: '', order_status: 0,
-    customer: '', cargo_type: '', pickup_address: '', delivery_address: '', notes: '',
-  });
+  const [form, setForm] = useState({ order_number: '', container_id: '', partner_id: '', order_status: 0, customer: '', cargo_type: '', pickup_address: '', delivery_address: '', notes: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [suggest, setSuggest] = useState(null);
 
   const { data: containers } = useFetch('/api/containers');
-  const { data: drivers } = useFetch('/api/drivers');
+  const { data: partners }   = useFetch('/api/partners');
 
   useEffect(() => {
-    if (order) setForm({
-      order_number: order.order_number || '', container_id: order.container_id || '',
-      driver_id: order.driver_id || '', order_status: order.order_status ?? 0,
-      customer: order.customer || '', cargo_type: order.cargo_type || '',
-      pickup_address: order.pickup_address || '', delivery_address: order.delivery_address || '',
-      notes: order.notes || '',
-    });
+    if (order) setForm({ order_number: order.order_number || '', container_id: order.container_id || '', partner_id: order.partner_id || '', order_status: order.order_status ?? 0, customer: order.customer || '', cargo_type: order.cargo_type || '', pickup_address: order.pickup_address || '', delivery_address: order.delivery_address || '', notes: order.notes || '' });
   }, [order]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // When container changes, suggest status sync
   const handleContainerChange = (cid) => {
     set('container_id', cid);
     if (cid && containers) {
@@ -36,9 +26,8 @@ export default function OrderModal({ order, onClose, onSaved }) {
       if (c) {
         const map = { 0: 0, 1: 3, 2: 1, 3: null, 4: null };
         const suggested = map[c.container_status];
-        if (suggested !== null && suggested !== undefined && suggested !== form.order_status) {
+        if (suggested !== null && suggested !== undefined && suggested !== form.order_status)
           setSuggest({ label: ORDER_STATUSES[suggested].label, value: suggested });
-        }
       }
     }
   };
@@ -46,15 +35,13 @@ export default function OrderModal({ order, onClose, onSaved }) {
   const submit = async (e) => {
     e.preventDefault(); setSaving(true); setError('');
     try {
-      const payload = { ...form, container_id: form.container_id || null, driver_id: form.driver_id || null };
+      const payload = { ...form, container_id: form.container_id || null, partner_id: form.partner_id || null };
       if (isEdit) await api('PUT', `/api/orders/${order.id}`, payload);
-      else await api('POST', '/api/orders', payload);
+      else        await api('POST', '/api/orders', payload);
       onSaved();
     } catch (e) { setError(e.message); }
     finally { setSaving(false); }
   };
-
-  const availableDrivers = drivers?.filter(d => d.driver_status === 0 || d.id === order?.driver_id) || [];
 
   return (
     <Modal title={isEdit ? 'Cập nhật Đơn hàng' : 'Tạo Đơn hàng mới'} onClose={onClose} size="lg">
@@ -62,7 +49,7 @@ export default function OrderModal({ order, onClose, onSaved }) {
         {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">{error}</div>}
         {suggest && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-center justify-between text-sm">
-            <span className="text-blue-700">💡 Vỏ đang ở trạng thái phù hợp — Đề xuất cập nhật đơn thành <b>{suggest.label}</b></span>
+            <span className="text-blue-700">💡 Trạng thái vỏ phù hợp — đề xuất đơn thành <b>{suggest.label}</b></span>
             <div className="flex gap-2 ml-3">
               <button type="button" onClick={() => { set('order_status', suggest.value); setSuggest(null); }} className="btn btn-primary py-1 text-xs">Áp dụng</button>
               <button type="button" onClick={() => setSuggest(null)} className="btn btn-secondary py-1 text-xs">Bỏ qua</button>
@@ -84,21 +71,17 @@ export default function OrderModal({ order, onClose, onSaved }) {
           <div>
             <label className="label">Vỏ Container</label>
             <select className="input" value={form.container_id} onChange={e => handleContainerChange(e.target.value)}>
-              <option value="">— Chưa gán —</option>
+              <option value="">— Chưa gán vỏ —</option>
               {containers?.map(c => (
                 <option key={c.id} value={c.id}>{c.container_number} ({CONTAINER_STATUSES[c.container_status]?.label} · {c.location})</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="label">Tài xế</label>
-            <select className="input" value={form.driver_id} onChange={e => set('driver_id', e.target.value)}>
-              <option value="">— Chưa phân công —</option>
-              {drivers?.map(d => (
-                <option key={d.id} value={d.id} disabled={d.driver_status === 1 && d.id !== order?.driver_id}>
-                  {d.name} — {d.license_plate}{d.driver_status === 1 && d.id !== order?.driver_id ? ' (Đang bận)' : ''}
-                </option>
-              ))}
+            <label className="label">Đối tác vận chuyển</label>
+            <select className="input" value={form.partner_id} onChange={e => set('partner_id', e.target.value)}>
+              <option value="">— Chưa có đối tác —</option>
+              {partners?.map(p => <option key={p.id} value={p.id}>{p.short_name || p.name}{p.contact_person ? ` (${p.contact_person})` : ''}</option>)}
             </select>
           </div>
           <div>
@@ -107,7 +90,7 @@ export default function OrderModal({ order, onClose, onSaved }) {
           </div>
           <div>
             <label className="label">Loại hàng</label>
-            <input className="input" value={form.cargo_type} onChange={e => set('cargo_type', e.target.value)} placeholder="Điện tử, Dệt may..." />
+            <input className="input" value={form.cargo_type} onChange={e => set('cargo_type', e.target.value)} placeholder="Điện tử, Dệt may, Thép..." />
           </div>
           <div>
             <label className="label">Điểm lấy hàng</label>

@@ -70,8 +70,8 @@ export default function Dashboard() {
         <KpiCard icon="🚢" label="Tổng vỏ container" value={kpi.containers.total}
           sub={`${kpi.containers.maintenance} đang sửa chữa`} color="border-indigo-500"
           subColor={kpi.containers.maintenance > 0 ? 'text-red-500' : 'text-gray-400'} />
-        <KpiCard icon="🚛" label="Tài xế sẵn sàng" value={kpi.drivers.available}
-          sub={`${kpi.drivers.busy} đang chạy hàng`} color="border-orange-500" />
+        <KpiCard icon="🤝" label="Đối tác vận chuyển" value={kpi.partners?.total || 0}
+          sub={`${kpi.partners?.active || 0} đang có đơn`} color="border-orange-500" />
       </div>
 
       {/* Charts row */}

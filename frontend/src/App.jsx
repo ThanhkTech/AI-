@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Dashboard    from './pages/Dashboard';
 import Containers   from './pages/Containers';
 import Orders       from './pages/Orders';
-import Drivers      from './pages/Drivers';
+import Partners     from './pages/Partners';
 import Fuel         from './pages/Fuel';
 import Maintenance  from './pages/Maintenance';
 import Logs         from './pages/Logs';
@@ -15,7 +15,7 @@ const NAV_GROUPS = [
       { id: 'dashboard',   label: 'Dashboard',        en: 'Overview',        icon: '📊' },
       { id: 'orders',      label: 'Đơn hàng',         en: 'Orders',          icon: '📋' },
       { id: 'containers',  label: 'Vỏ Container',      en: 'Fleet',           icon: '🚢' },
-      { id: 'drivers',     label: 'Tài xế',            en: 'Drivers',         icon: '🚛' },
+      { id: 'partners',    label: 'Đối tác',            en: 'Partners',        icon: '🤝' },
     ],
   },
   {
@@ -40,7 +40,7 @@ const PAGES = {
   dashboard:   Dashboard,
   orders:      Orders,
   containers:  Containers,
-  drivers:     Drivers,
+  partners:    Partners,
   fuel:        Fuel,
   maintenance: Maintenance,
   logs:        Logs,

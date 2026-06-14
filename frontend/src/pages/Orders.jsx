@@ -50,9 +50,9 @@ function DetailPanel({ id, onClose, onEdit }) {
             ['Vỏ container', data.container_number ? <span className="font-mono text-blue-600">{data.container_number}</span> : '—'],
             ['Trạng thái vỏ', data.container_status !== undefined ? <ContainerStatusBadge status={data.container_status} /> : '—'],
             ['Vị trí vỏ', data.location || '—'],
-            ['Tài xế', data.driver_name || '—'],
-            ['Biển số', data.license_plate || '—'],
-            ['SĐT tài xế', data.driver_phone || '—'],
+            ['Đối tác', data.partner_name || '—'],
+            ['Người liên hệ', data.contact_person || '—'],
+            ['SĐT đối tác', data.partner_phone || '—'],
             ['Khách hàng', data.customer || '—'],
             ['Loại hàng', data.cargo_type || '—'],
             ['Điểm lấy hàng', data.pickup_address || '—'],
@@ -142,7 +142,7 @@ export default function Orders() {
                   <th className="table-th">Số đơn</th>
                   <th className="table-th">Trạng thái đơn</th>
                   <th className="table-th">Vỏ Container</th>
-                  <th className="table-th">Tài xế</th>
+                  <th className="table-th">Đối tác</th>
                   <th className="table-th">Khách hàng</th>
                   <th className="table-th">Loại hàng</th>
                   <th className="table-th">Cập nhật</th>
@@ -165,12 +165,12 @@ export default function Orders() {
                         : <span className="text-gray-400">—</span>}
                     </td>
                     <td className="table-td">
-                      {o.driver_name
+                      {o.partner_name
                         ? <div>
-                            <p className="text-sm font-medium">{o.driver_name}</p>
-                            <p className="text-xs text-gray-400">{o.license_plate}</p>
+                            <p className="text-sm font-medium">{o.partner_name}</p>
+                            <p className="text-xs text-gray-400">{o.contact_person}</p>
                           </div>
-                        : <span className="text-gray-400 text-xs">Chưa phân công</span>}
+                        : <span className="text-gray-400 text-xs">Chưa có đối tác</span>}
                     </td>
                     <td className="table-td">{o.customer || '—'}</td>
                     <td className="table-td text-gray-500 text-xs">{o.cargo_type || '—'}</td>

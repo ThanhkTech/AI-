@@ -5,15 +5,14 @@ import { todayStr } from '../utils/format';
 
 export default function FuelModal({ record, onClose, onSaved }) {
   const isEdit = !!record?.id;
-  const [form, setForm] = useState({ container_id: '', driver_id: '', fill_date: todayStr(), liters: '', price_per_liter: '22500', station: '', odometer: '', notes: '' });
+  const [form, setForm] = useState({ container_id: '', fill_date: todayStr(), liters: '', price_per_liter: '22500', station: '', odometer: '', notes: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const { data: containers } = useFetch('/api/containers');
-  const { data: drivers }    = useFetch('/api/drivers');
 
   useEffect(() => {
-    if (record) setForm({ container_id: record.container_id || '', driver_id: record.driver_id || '', fill_date: record.fill_date || todayStr(), liters: record.liters || '', price_per_liter: record.price_per_liter || '22500', station: record.station || '', odometer: record.odometer || '', notes: record.notes || '' });
+    if (record) setForm({ container_id: record.container_id || '', fill_date: record.fill_date || todayStr(), liters: record.liters || '', price_per_liter: record.price_per_liter || '22500', station: record.station || '', odometer: record.odometer || '', notes: record.notes || '' });
   }, [record]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -43,13 +42,6 @@ export default function FuelModal({ record, onClose, onSaved }) {
             <select className="input" value={form.container_id} onChange={e => set('container_id', e.target.value)}>
               <option value="">— Chọn vỏ —</option>
               {containers?.map(c => <option key={c.id} value={c.id}>{c.container_number}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Tài xế</label>
-            <select className="input" value={form.driver_id} onChange={e => set('driver_id', e.target.value)}>
-              <option value="">— Chọn tài xế —</option>
-              {drivers?.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
           <div>

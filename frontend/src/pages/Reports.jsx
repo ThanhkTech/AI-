@@ -43,7 +43,7 @@ function FuelReport({ from, to }) {
           <thead className="bg-gray-50 border-b">
             <tr>
               <th className="table-th">Ngày</th><th className="table-th">Vỏ Container</th>
-              <th className="table-th">Tài xế</th><th className="table-th">Trạm</th>
+              <th className="table-th">Trạm xăng</th>
               <th className="table-th text-right">Lít</th><th className="table-th text-right">Đơn giá</th>
               <th className="table-th text-right">Thành tiền</th>
             </tr>
@@ -53,7 +53,6 @@ function FuelReport({ from, to }) {
               <tr key={r.id} className="table-tr">
                 <td className="table-td">{r.fill_date}</td>
                 <td className="table-td font-mono font-semibold">{r.container_number}</td>
-                <td className="table-td">{r.driver_name}</td>
                 <td className="table-td text-gray-500 text-xs">{r.station || '—'}</td>
                 <td className="table-td text-right">{fmtNumber(r.liters)}</td>
                 <td className="table-td text-right text-gray-500">{fmtNumber(r.price_per_liter)}</td>
@@ -152,19 +151,20 @@ function OperationsReport() {
         <div className="card p-4 text-center border-l-4 border-orange-500"><p className="text-xs text-gray-400">Tổng tài xế</p><p className="text-2xl font-bold">{s.total_drivers}</p></div>
       </div>
 
-      <Section title="Hiệu suất tài xế / Driver Performance">
+      <Section title="Hiệu suất đối tác / Partner Performance">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="table-th">Tài xế</th><th className="table-th">Biển số</th>
+              <th className="table-th">Đối tác</th><th className="table-th">Người liên hệ</th><th className="table-th">SĐT</th>
               <th className="table-th text-right">Tổng đơn</th><th className="table-th text-right">Đã giao</th><th className="table-th text-right">Đang xử lý</th>
             </tr>
           </thead>
           <tbody>
-            {data.driver_stats.map(d => (
+            {data.partner_stats.map(d => (
               <tr key={d.name} className="table-tr">
-                <td className="table-td font-semibold">{d.name}</td>
-                <td className="table-td font-mono text-xs">{d.license_plate || '—'}</td>
+                <td className="table-td font-semibold">{d.short_name || d.name}</td>
+                <td className="table-td text-xs text-gray-500">{d.contact_person || '—'}</td>
+                <td className="table-td text-xs text-gray-500">{d.phone || '—'}</td>
                 <td className="table-td text-right">{d.total_orders}</td>
                 <td className="table-td text-right text-green-700 font-semibold">{d.delivered}</td>
                 <td className="table-td text-right text-blue-600">{d.active}</td>
