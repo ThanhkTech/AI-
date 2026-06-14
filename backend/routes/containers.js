@@ -3,152 +3,92 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
 
-const STATUSES = [
-  'Chờ lấy hàng',
-  'Đang lấy hàng',
-  'Chờ vận chuyển',
-  'Trung chuyển',
-  'Chờ giao hàng',
-  'Đã giao hàng',
-  'Hủy',
-];
+// Container status → suggested order status mapping
+const CONT_TO_ORDER_STATUS = {
+  0: null,   // tại ga: no auto-suggest
+  1: [3, 4], // đã vận hành: trung chuyển or chờ giao
+  2: [1],    // đang lấy hàng: đang lấy hàng
+  3: null,   // khác
+  4: null,   // sửa chữa
+};
 
 const LOCATIONS = ['Ga Đông Anh', 'Ga Trảng Bom', 'Ga Khác', 'Khác'];
 
-// GET all containers with optional filters
 router.get('/', (req, res) => {
-  const { status, location, search } = req.query;
-  let query = 'SELECT * FROM containers WHERE 1=1';
+  const { container_status, location, search } = req.query;
+  let q = `SELECT c.*,
+    o.order_number, o.order_status, o.customer, o.id as order_id
+    FROM containers c
+    LEFT JOIN orders o ON o.container_id = c.id AND o.order_status NOT IN (5,6)
+    WHERE 1=1`;
   const params = [];
-
-  if (status !== undefined && status !== '') {
-    query += ' AND status = ?';
-    params.push(parseInt(status));
+  if (container_status !== undefined && container_status !== '') {
+    q += ' AND c.container_status = ?'; params.push(parseInt(container_status));
   }
-  if (location) {
-    query += ' AND location = ?';
-    params.push(location);
-  }
+  if (location) { q += ' AND c.location = ?'; params.push(location); }
   if (search) {
-    query += ' AND (container_number LIKE ? OR customer LIKE ? OR cargo_type LIKE ?)';
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    q += ' AND (c.container_number LIKE ? OR o.customer LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`);
   }
-
-  query += ' ORDER BY updated_at DESC';
-
-  const containers = db.prepare(query).all(...params);
-  res.json(containers);
+  q += ' ORDER BY c.updated_at DESC';
+  res.json(db.prepare(q).all(...params));
 });
 
-// GET single container with history
 router.get('/:id', (req, res) => {
-  const container = db.prepare('SELECT * FROM containers WHERE id = ?').get(req.params.id);
-  if (!container) return res.status(404).json({ error: 'Container not found' });
-
-  const history = db.prepare(
-    'SELECT * FROM status_history WHERE container_id = ? ORDER BY changed_at DESC'
-  ).all(req.params.id);
-
-  res.json({ ...container, history });
+  const c = db.prepare('SELECT * FROM containers WHERE id = ?').get(req.params.id);
+  if (!c) return res.status(404).json({ error: 'Not found' });
+  const orders = db.prepare('SELECT * FROM orders WHERE container_id = ? ORDER BY created_at DESC').all(req.params.id);
+  const log = db.prepare(`SELECT * FROM activity_log WHERE entity_type='container' AND entity_id=? ORDER BY created_at DESC LIMIT 20`).all(req.params.id);
+  res.json({ ...c, orders, log });
 });
 
-// POST create container
 router.post('/', (req, res) => {
-  const { container_number, status = 0, location = 'Khác', customer, cargo_type, notes } = req.body;
-
-  if (!container_number) return res.status(400).json({ error: 'container_number is required' });
-  if (!LOCATIONS.includes(location)) return res.status(400).json({ error: 'Invalid location' });
-  if (status < 0 || status > 6) return res.status(400).json({ error: 'Invalid status' });
-
+  const { container_number, container_status = 0, location = 'Ga Đông Anh', size = '20ft', notes } = req.body;
+  if (!container_number) return res.status(400).json({ error: 'container_number required' });
   const id = uuidv4();
   try {
-    db.prepare(`
-      INSERT INTO containers (id, container_number, status, location, customer, cargo_type, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, container_number.toUpperCase(), status, location, customer, cargo_type, notes);
-
-    db.prepare(
-      'INSERT INTO status_history (container_id, status, location, notes) VALUES (?, ?, ?, ?)'
-    ).run(id, status, location, notes);
-
-    const container = db.prepare('SELECT * FROM containers WHERE id = ?').get(id);
-    res.status(201).json(container);
-  } catch (err) {
-    if (err.message.includes('UNIQUE')) {
-      return res.status(409).json({ error: 'Container number already exists' });
-    }
-    throw err;
+    db.prepare(`INSERT INTO containers (id,container_number,container_status,location,size,notes) VALUES (?,?,?,?,?,?)`).run(id, container_number.toUpperCase(), container_status, location, size, notes || null);
+    db.prepare(`INSERT INTO activity_log (entity_type,entity_id,field,old_value,new_value) VALUES ('container',?,?,'','?')`).run(id, 'created', container_status);
+    res.status(201).json(db.prepare('SELECT * FROM containers WHERE id=?').get(id));
+  } catch (e) {
+    if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'Số container đã tồn tại' });
+    throw e;
   }
 });
 
-// PUT update container
 router.put('/:id', (req, res) => {
-  const container = db.prepare('SELECT * FROM containers WHERE id = ?').get(req.params.id);
-  if (!container) return res.status(404).json({ error: 'Container not found' });
+  const old = db.prepare('SELECT * FROM containers WHERE id=?').get(req.params.id);
+  if (!old) return res.status(404).json({ error: 'Not found' });
+  const { container_status, location, size, notes } = req.body;
+  const ns = container_status !== undefined ? parseInt(container_status) : old.container_status;
+  const nl = location || old.location;
 
-  const { status, location, customer, cargo_type, notes } = req.body;
-  const newStatus = status !== undefined ? parseInt(status) : container.status;
-  const newLocation = location || container.location;
+  db.prepare(`UPDATE containers SET container_status=?,location=?,size=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(ns, nl, size || old.size, notes !== undefined ? notes : old.notes, req.params.id);
 
-  if (!LOCATIONS.includes(newLocation)) return res.status(400).json({ error: 'Invalid location' });
-  if (newStatus < 0 || newStatus > 6) return res.status(400).json({ error: 'Invalid status' });
-
-  db.prepare(`
-    UPDATE containers
-    SET status = ?, location = ?, customer = ?, cargo_type = ?, notes = ?,
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `).run(
-    newStatus,
-    newLocation,
-    customer !== undefined ? customer : container.customer,
-    cargo_type !== undefined ? cargo_type : container.cargo_type,
-    notes !== undefined ? notes : container.notes,
-    req.params.id
-  );
-
-  if (newStatus !== container.status || newLocation !== container.location) {
-    db.prepare(
-      'INSERT INTO status_history (container_id, status, location, notes) VALUES (?, ?, ?, ?)'
-    ).run(req.params.id, newStatus, newLocation, notes);
+  if (ns !== old.container_status) {
+    db.prepare(`INSERT INTO activity_log (entity_type,entity_id,field,old_value,new_value) VALUES ('container',?,'container_status',?,?)`).run(req.params.id, String(old.container_status), String(ns));
+  }
+  if (nl !== old.location) {
+    db.prepare(`INSERT INTO activity_log (entity_type,entity_id,field,old_value,new_value) VALUES ('container',?,'location',?,?)`).run(req.params.id, old.location, nl);
   }
 
-  const updated = db.prepare('SELECT * FROM containers WHERE id = ?').get(req.params.id);
-  res.json(updated);
-});
-
-// DELETE container
-router.delete('/:id', (req, res) => {
-  const container = db.prepare('SELECT * FROM containers WHERE id = ?').get(req.params.id);
-  if (!container) return res.status(404).json({ error: 'Container not found' });
-
-  db.prepare('DELETE FROM status_history WHERE container_id = ?').run(req.params.id);
-  db.prepare('DELETE FROM containers WHERE id = ?').run(req.params.id);
-  res.json({ success: true });
-});
-
-// GET KPI stats
-router.get('/stats/kpi', (req, res) => {
-  const total = db.prepare('SELECT COUNT(*) as c FROM containers').get().c;
-  const byStatus = db.prepare(
-    'SELECT status, COUNT(*) as count FROM containers GROUP BY status'
-  ).all();
-  const byLocation = db.prepare(
-    'SELECT location, COUNT(*) as count FROM containers GROUP BY location'
-  ).all();
-  const delivered = byStatus.find(s => s.status === 5)?.count || 0;
-  const cancelled = byStatus.find(s => s.status === 6)?.count || 0;
-  const active = total - delivered - cancelled;
+  const suggested = CONT_TO_ORDER_STATUS[ns];
+  const activeOrder = db.prepare(`SELECT * FROM orders WHERE container_id=? AND order_status NOT IN (5,6) LIMIT 1`).get(req.params.id);
 
   res.json({
-    total,
-    active,
-    delivered,
-    cancelled,
-    delivery_rate: total > 0 ? Math.round((delivered / total) * 100) : 0,
-    by_status: byStatus,
-    by_location: byLocation,
+    container: db.prepare('SELECT * FROM containers WHERE id=?').get(req.params.id),
+    suggest_order_status: suggested && activeOrder ? { order_id: activeOrder.id, order_number: activeOrder.order_number, suggested_statuses: suggested } : null,
   });
+});
+
+router.delete('/:id', (req, res) => {
+  const c = db.prepare('SELECT * FROM containers WHERE id=?').get(req.params.id);
+  if (!c) return res.status(404).json({ error: 'Not found' });
+  const active = db.prepare(`SELECT COUNT(*) as n FROM orders WHERE container_id=? AND order_status NOT IN (5,6)`).get(req.params.id);
+  if (active.n > 0) return res.status(400).json({ error: 'Vỏ đang có đơn hàng đang vận hành' });
+  db.prepare('DELETE FROM containers WHERE id=?').run(req.params.id);
+  res.json({ success: true });
 });
 
 module.exports = router;

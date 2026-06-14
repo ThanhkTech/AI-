@@ -2,11 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background-color: #f1f5f9;
-}
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f0f4f8; }
 
-.status-badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
-}
+.sidebar-item { @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer; }
+.sidebar-item:hover { @apply bg-white/10; }
+.sidebar-item.active { @apply bg-white text-blue-700 shadow-sm; }
+.sidebar-item:not(.active) { @apply text-blue-100; }
+
+.card { @apply bg-white rounded-xl shadow-sm border border-gray-100; }
+.btn { @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition cursor-pointer border-0 disabled:opacity-50; }
+.btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700; }
+.btn-secondary { @apply bg-gray-100 text-gray-700 hover:bg-gray-200; }
+.btn-danger { @apply bg-red-50 text-red-600 hover:bg-red-100; }
+.btn-success { @apply bg-green-50 text-green-700 hover:bg-green-100; }
+
+.input { @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white; }
+.label { @apply block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1; }
+
+.table-th { @apply text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider; }
+.table-td { @apply px-4 py-3 text-sm text-gray-700; }
+.table-tr { @apply hover:bg-blue-50/40 transition-colors border-b border-gray-50 last:border-0; }
